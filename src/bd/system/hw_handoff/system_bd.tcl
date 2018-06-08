@@ -51,70 +51,68 @@ if { $list_projs eq "" } {
 # CHANGE DESIGN NAME HERE
 set design_name system
 
-# If you do not already have an existing IP Integrator design open,
-# you can create a design using the following command:
-#    create_bd_design $design_name
+# This script was generated for a remote BD. To create a non-remote design,
+# change the variable <run_remote_bd_flow> to <0>.
 
-# Creating design if needed
-set errMsg ""
-set nRet 0
+set run_remote_bd_flow 1
+if { $run_remote_bd_flow == 1 } {
+  # Set the reference directory for source file relative paths (by default 
+  # the value is script directory path)
+  set origin_dir ./bd
 
-set cur_design [current_bd_design -quiet]
-set list_cells [get_bd_cells -quiet]
+  # Use origin directory path location variable, if specified in the tcl shell
+  if { [info exists ::origin_dir_loc] } {
+     set origin_dir $::origin_dir_loc
+  }
 
-if { ${design_name} eq "" } {
-   # USE CASES:
-   #    1) Design_name not set
+  set str_bd_folder [file normalize ${origin_dir}]
+  set str_bd_filepath ${str_bd_folder}/${design_name}/${design_name}.bd
 
-   set errMsg "Please set the variable <design_name> to a non-empty value."
-   set nRet 1
+  # Check if remote design exists on disk
+  if { [file exists $str_bd_filepath ] == 1 } {
+     catch {common::send_msg_id "BD_TCL-110" "ERROR" "The remote BD file path <$str_bd_filepath> already exists!"}
+     common::send_msg_id "BD_TCL-008" "INFO" "To create a non-remote BD, change the variable <run_remote_bd_flow> to <0>."
+     common::send_msg_id "BD_TCL-009" "INFO" "Also make sure there is no design <$design_name> existing in your current project."
 
-} elseif { ${cur_design} ne "" && ${list_cells} eq "" } {
-   # USE CASES:
-   #    2): Current design opened AND is empty AND names same.
-   #    3): Current design opened AND is empty AND names diff; design_name NOT in project.
-   #    4): Current design opened AND is empty AND names diff; design_name exists in project.
+     return 1
+  }
 
-   if { $cur_design ne $design_name } {
-      common::send_msg_id "BD_TCL-001" "INFO" "Changing value of <design_name> from <$design_name> to <$cur_design> since current design is empty."
-      set design_name [get_property NAME $cur_design]
-   }
-   common::send_msg_id "BD_TCL-002" "INFO" "Constructing design in IPI design <$cur_design>..."
+  # Check if design exists in memory
+  set list_existing_designs [get_bd_designs -quiet $design_name]
+  if { $list_existing_designs ne "" } {
+     catch {common::send_msg_id "BD_TCL-111" "ERROR" "The design <$design_name> already exists in this project! Will not create the remote BD <$design_name> at the folder <$str_bd_folder>."}
 
-} elseif { ${cur_design} ne "" && $list_cells ne "" && $cur_design eq $design_name } {
-   # USE CASES:
-   #    5) Current design opened AND has components AND same names.
+     common::send_msg_id "BD_TCL-010" "INFO" "To create a non-remote BD, change the variable <run_remote_bd_flow> to <0> or please set a different value to variable <design_name>."
 
-   set errMsg "Design <$design_name> already exists in your project, please set the variable <design_name> to another value."
-   set nRet 1
-} elseif { [get_files -quiet ${design_name}.bd] ne "" } {
-   # USE CASES: 
-   #    6) Current opened design, has components, but diff names, design_name exists in project.
-   #    7) No opened design, design_name exists in project.
+     return 1
+  }
 
-   set errMsg "Design <$design_name> already exists in your project, please set the variable <design_name> to another value."
-   set nRet 2
+  # Check if design exists on disk within project
+  set list_existing_designs [get_files */${design_name}.bd]
+  if { $list_existing_designs ne "" } {
+     catch {common::send_msg_id "BD_TCL-112" "ERROR" "The design <$design_name> already exists in this project at location:
+    $list_existing_designs"}
+     catch {common::send_msg_id "BD_TCL-113" "ERROR" "Will not create the remote BD <$design_name> at the folder <$str_bd_folder>."}
 
+     common::send_msg_id "BD_TCL-011" "INFO" "To create a non-remote BD, change the variable <run_remote_bd_flow> to <0> or please set a different value to variable <design_name>."
+
+     return 1
+  }
+
+  # Now can create the remote BD
+  # NOTE - usage of <-dir> will create <$str_bd_folder/$design_name/$design_name.bd>
+  create_bd_design -dir $str_bd_folder $design_name
 } else {
-   # USE CASES:
-   #    8) No opened design, design_name not in project.
-   #    9) Current opened design, has components, but diff names, design_name not in project.
 
-   common::send_msg_id "BD_TCL-003" "INFO" "Currently there is no design <$design_name> in project, so creating one..."
+  # Create regular design
+  if { [catch {create_bd_design $design_name} errmsg] } {
+     common::send_msg_id "BD_TCL-012" "INFO" "Please set a different value to variable <design_name>."
 
-   create_bd_design $design_name
-
-   common::send_msg_id "BD_TCL-004" "INFO" "Making design <$design_name> as current_bd_design."
-   current_bd_design $design_name
-
+     return 1
+  }
 }
 
-common::send_msg_id "BD_TCL-005" "INFO" "Currently the variable <design_name> is equal to \"$design_name\"."
-
-if { $nRet != 0 } {
-   catch {common::send_msg_id "BD_TCL-114" "ERROR" $errMsg}
-   return $nRet
-}
+current_bd_design $design_name
 
 ##################################################################
 # DESIGN PROCs
@@ -166,11 +164,6 @@ proc create_root_design { parentCell } {
 
   # Create instance: axi_dynclk_0, and set properties
   set axi_dynclk_0 [ create_bd_cell -type ip -vlnv digilentinc.com:ip:axi_dynclk:1.0 axi_dynclk_0 ]
-
-  set_property -dict [ list \
-CONFIG.NUM_READ_OUTSTANDING {1} \
-CONFIG.NUM_WRITE_OUTSTANDING {1} \
- ] [get_bd_intf_pins /axi_dynclk_0/s00_axi]
 
   # Create instance: axi_gpio_video, and set properties
   set axi_gpio_video [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_gpio:2.0 axi_gpio_video ]
@@ -369,8 +362,8 @@ CONFIG.PCW_FCLK3_PERIPHERAL_CLKSRC {IO PLL} \
 CONFIG.PCW_FCLK3_PERIPHERAL_DIVISOR0 {1} \
 CONFIG.PCW_FCLK3_PERIPHERAL_DIVISOR1 {1} \
 CONFIG.PCW_FCLK_CLK0_BUF {TRUE} \
-CONFIG.PCW_FCLK_CLK1_BUF {FALSE} \
-CONFIG.PCW_FCLK_CLK2_BUF {FALSE} \
+CONFIG.PCW_FCLK_CLK1_BUF {TRUE} \
+CONFIG.PCW_FCLK_CLK2_BUF {TRUE} \
 CONFIG.PCW_FCLK_CLK3_BUF {FALSE} \
 CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ {100} \
 CONFIG.PCW_FPGA1_PERIPHERAL_FREQMHZ {134} \
@@ -1281,13 +1274,13 @@ CONFIG.NUM_PORTS {5} \
   regenerate_bd_layout -layout_string {
    guistr: "# # String gsaved with Nlview 6.6.5b  2016-09-06 bk=1.3687 VDI=39 GEI=35 GUI=JA:1.6
 #  -string -flagsOSRD
-preplace port DDR -pg 1 -y 410 -defaultsOSRD
-preplace port hdmi_out_ddc -pg 1 -y -70 -defaultsOSRD
+preplace port DDR -pg 1 -y 900 -defaultsOSRD
+preplace port hdmi_out_ddc -pg 1 -y 960 -defaultsOSRD
 preplace port hdmi_out -pg 1 -y -280 -defaultsOSRD
-preplace port FIXED_IO -pg 1 -y 430 -defaultsOSRD
+preplace port FIXED_IO -pg 1 -y 940 -defaultsOSRD
 preplace port hdmi_in -pg 1 -y -450 -defaultsOSRD
 preplace port hdmi_in_ddc -pg 1 -y -450 -defaultsOSRD
-preplace portBus hdmi_in_hpd -pg 1 -y 790 -defaultsOSRD
+preplace portBus hdmi_in_hpd -pg 1 -y -100 -defaultsOSRD
 preplace inst v_axi4s_vid_out_0 -pg 1 -lvl 6 -y -590 -defaultsOSRD
 preplace inst axis_subset_converter_out -pg 1 -lvl 5 -y -130 -defaultsOSRD
 preplace inst axi_vdma_0 -pg 1 -lvl 4 -y -90 -defaultsOSRD
@@ -1299,62 +1292,62 @@ preplace inst rgb2dvi_0 -pg 1 -lvl 7 -y -280 -defaultsOSRD
 preplace inst proc_sys_reset_1 -pg 1 -lvl 1 -y -630 -defaultsOSRD
 preplace inst v_tc_in -pg 1 -lvl 3 -y -600 -defaultsOSRD
 preplace inst axi_dynclk_0 -pg 1 -lvl 4 -y -330 -defaultsOSRD
-preplace inst axi_gpio_video -pg 1 -lvl 7 -y 810 -defaultsOSRD
+preplace inst axi_gpio_video -pg 1 -lvl 7 -y -80 -defaultsOSRD
 preplace inst v_vid_in_axi4s_0 -pg 1 -lvl 2 -y -240 -defaultsOSRD
 preplace inst axi_interconnect_0 -pg 1 -lvl 2 -y 630 -defaultsOSRD
 preplace inst ps7_0_axi_periph -pg 1 -lvl 6 -y 630 -defaultsOSRD
 preplace inst dvi2rgb_0 -pg 1 -lvl 1 -y -420 -defaultsOSRD
-preplace inst rst_ps7_0_100M -pg 1 -lvl 4 -y 160 -defaultsOSRD
+preplace inst rst_ps7_0_100M -pg 1 -lvl 5 -y 730 -defaultsOSRD
 preplace inst axis_subset_converter_in -pg 1 -lvl 3 -y -170 -defaultsOSRD
 preplace inst processing_system7_0 -pg 1 -lvl 4 -y 1020 -defaultsOSRD
+preplace netloc processing_system7_0_DDR 1 4 4 NJ 910 NJ 910 NJ 910 2500J
 preplace netloc ps7_0_axi_periph_M02_AXI 1 3 4 1000 -210 NJ -210 NJ -210 2150
-preplace netloc processing_system7_0_DDR 1 4 4 NJ 910 NJ 910 NJ 910 2510J
-preplace netloc v_vid_in_axi4s_0_video_out 1 2 1 610
-preplace netloc axi_vdma_0_s2mm_introut 1 1 4 340 250 NJ 250 NJ 250 1440
-preplace netloc v_tc_out_irq 1 1 5 330 260 NJ 260 NJ 260 NJ 260 1810
-preplace netloc axi_gpio_video_ip2intc_irpt 1 1 7 340 440 660J 410 NJ 410 NJ 410 NJ 410 NJ 410 2490
-preplace netloc axi_dynclk_0_PXL_CLK_O 1 4 3 1470 -350 1850J -350 2220J
+preplace netloc v_vid_in_axi4s_0_video_out 1 2 1 600
+preplace netloc axi_vdma_0_s2mm_introut 1 1 4 330 60 NJ 60 NJ 60 1420
+preplace netloc v_tc_out_irq 1 1 5 330 460 NJ 460 NJ 460 NJ 460 1840
+preplace netloc axi_gpio_video_ip2intc_irpt 1 1 7 310 40 NJ 40 NJ 40 NJ 40 NJ 40 NJ 40 2490
+preplace netloc axi_dynclk_0_PXL_CLK_O 1 4 3 1450 -350 1890J -350 2220J
 preplace netloc axis_subset_converter_in_M_AXIS 1 3 1 960
-preplace netloc axi_vdma_0_M_AXI_MM2S 1 1 4 300 -100 NJ -100 950J -220 1420
+preplace netloc axi_vdma_0_M_AXI_MM2S 1 1 4 300 -100 NJ -100 930J -220 1420
 preplace netloc v_axi4s_vid_out_0_vid_io_out 1 6 1 2230
-preplace netloc processing_system7_0_M_AXI_GP0 1 4 2 NJ 990 1850J
-preplace netloc axi_dynclk_0_LOCKED_O 1 4 3 NJ -310 NJ -310 2210J
-preplace netloc ACLK_1 1 0 6 -50 60 280 60 660J 60 1000 60 1500 60 1830J
-preplace netloc rst_ps7_0_100M_peripheral_aresetn 1 0 7 -60 830 NJ 830 640 830 940 830 1490 830 1860 830 NJ
-preplace netloc axis_subset_converter_out_M_AXIS 1 5 1 1820
-preplace netloc axi_vdma_0_M_AXIS_MM2S 1 4 1 1470
-preplace netloc proc_sys_reset_1_peripheral_aresetn 1 1 2 N -590 640J
-preplace netloc processing_system7_0_FCLK_RESET0_N 1 0 5 -70 70 NJ 70 NJ 70 990 70 1420
-preplace netloc processing_system7_0_IIC_0 1 4 4 NJ 950 NJ 950 NJ 950 2520J
+preplace netloc processing_system7_0_M_AXI_GP0 1 4 2 NJ 990 1890J
+preplace netloc axi_dynclk_0_LOCKED_O 1 4 3 NJ -310 NJ -310 2200J
+preplace netloc ACLK_1 1 0 6 -50 70 280 70 650J 70 980 70 1470 70 1870J
+preplace netloc rst_ps7_0_100M_peripheral_aresetn 1 0 7 -70 -500 NJ -500 620 -470 990 -470 1470 -470 1860 -60 NJ
+preplace netloc axis_subset_converter_out_M_AXIS 1 5 1 1850
+preplace netloc axi_vdma_0_M_AXIS_MM2S 1 4 1 1450
+preplace netloc proc_sys_reset_1_peripheral_aresetn 1 1 2 N -590 620J
+preplace netloc processing_system7_0_FCLK_RESET0_N 1 0 5 -80 780 NJ 780 NJ 780 N 780 1480
+preplace netloc processing_system7_0_IIC_0 1 4 4 NJ 950 NJ 950 NJ 950 2500J
 preplace netloc ps7_0_axi_periph_M03_AXI 1 3 4 1000J -250 NJ -250 NJ -250 2180
 preplace netloc axi_dynclk_0_PXL_CLK_5X_O 1 4 3 NJ -330 NJ -330 2190J
-preplace netloc ps7_0_axi_periph_M01_AXI 1 4 3 1500 -220 NJ -220 2160
 preplace netloc rgb2dvi_0_TMDS 1 7 1 NJ
 preplace netloc hdmi_in_1 1 0 1 NJ
-preplace netloc xlconstant_axis_sc_reset_dout 1 2 3 630 -390 980J 30 1480J
+preplace netloc ps7_0_axi_periph_M01_AXI 1 4 3 1480 -220 NJ -220 2160
+preplace netloc xlconstant_axis_sc_reset_dout 1 2 3 620 -390 970J 30 1460J
 preplace netloc proc_sys_reset_0_interconnect_aresetn 1 1 1 270
-preplace netloc dvi2rgb_0_DDC 1 1 7 290J -440 NJ -440 NJ -440 NJ -440 NJ -440 NJ -440 2520J
+preplace netloc dvi2rgb_0_DDC 1 1 7 290J -440 NJ -440 NJ -440 NJ -440 NJ -440 NJ -440 2500J
 preplace netloc proc_sys_reset_1_peripheral_reset 1 1 1 320
-preplace netloc v_axi4s_vid_out_0_vtg_ce 1 4 3 1490 -830 NJ -830 2220
-preplace netloc xlconcat_0_dout 1 2 2 NJ 350 920
-preplace netloc dvi2rgb_0_aPixelClkLckd 1 0 8 -50 -520 280J -460 NJ -460 NJ -460 NJ -460 NJ -460 NJ -460 2500
-preplace netloc processing_system7_0_FIXED_IO 1 4 4 NJ 930 NJ 930 NJ 930 2530J
-preplace netloc axi_vdma_0_mm2s_introut 1 1 4 320 40 NJ 40 NJ 40 1450
-preplace netloc axi_interconnect_0_M00_AXI 1 2 2 NJ 630 930
-preplace netloc proc_sys_reset_0_peripheral_aresetn 1 1 1 320
-preplace netloc ps7_0_axi_periph_M04_AXI 1 2 5 650 -240 NJ -240 NJ -240 NJ -240 2170
-preplace netloc v_tc_in_irq 1 1 3 310 230 NJ 230 920
-preplace netloc processing_system7_0_FCLK_CLK0 1 2 5 660 -410 970 -410 1460 -410 1840 -410 2200J
-preplace netloc axi_vdma_0_M_AXI_S2MM 1 1 4 290 -110 620J -250 990J -230 1440
-preplace netloc v_vid_in_axi4s_0_vtiming_out 1 2 1 600
-preplace netloc ps7_0_axi_periph_M00_AXI 1 6 1 2190
+preplace netloc v_axi4s_vid_out_0_vtg_ce 1 4 3 1470 -830 NJ -830 2220
+preplace netloc xlconcat_0_dout 1 2 2 NJ 350 930
+preplace netloc dvi2rgb_0_aPixelClkLckd 1 0 8 -70 -520 280J -460 NJ -460 NJ -460 NJ -460 NJ -460 NJ -460 2490
+preplace netloc processing_system7_0_FIXED_IO 1 4 4 NJ 930 NJ 930 NJ 930 2490J
+preplace netloc axi_vdma_0_mm2s_introut 1 1 4 320 50 NJ 50 NJ 50 1430
+preplace netloc axi_interconnect_0_M00_AXI 1 2 2 NJ 630 940
+preplace netloc proc_sys_reset_0_peripheral_aresetn 1 1 1 310
+preplace netloc ps7_0_axi_periph_M04_AXI 1 2 5 640 -240 NJ -240 NJ -240 NJ -240 2170
+preplace netloc v_tc_in_irq 1 1 3 320 450 NJ 450 920
+preplace netloc processing_system7_0_FCLK_CLK0 1 2 5 650 -410 950 -410 1440 -410 1880 -410 2210J
+preplace netloc axi_vdma_0_M_AXI_S2MM 1 1 4 290 -110 630J -250 980J -230 1430
+preplace netloc v_vid_in_axi4s_0_vtiming_out 1 2 1 610
+preplace netloc ps7_0_axi_periph_M00_AXI 1 6 1 2230
 preplace netloc axi_gpio_video_gpio_io_o 1 7 1 N
-preplace netloc v_tc_out_vtiming_out 1 5 1 1830
-preplace netloc dvi2rgb_0_RGB 1 1 1 300
-preplace netloc dvi2rgb_0_PixelClk 1 0 3 -70 -720 340 -720 640J
-preplace netloc processing_system7_0_FCLK_CLK2 1 0 5 -50 50 NJ 50 NJ 50 NJ 50 1430
-preplace netloc rst_ps7_0_100M_interconnect_aresetn 1 4 2 NJ 180 1820J
-levelinfo -pg 1 -90 110 470 790 1210 1680 2020 2360 2550 -top -890 -bot 1500
+preplace netloc v_tc_out_vtiming_out 1 5 1 1890
+preplace netloc dvi2rgb_0_RGB 1 1 1 310
+preplace netloc dvi2rgb_0_PixelClk 1 0 3 -80 -720 330 -720 620J
+preplace netloc processing_system7_0_FCLK_CLK2 1 0 5 -60 440 NJ 440 NJ 440 NJ 440 1420
+preplace netloc rst_ps7_0_100M_interconnect_aresetn 1 5 1 1850J
+levelinfo -pg 1 -100 110 470 790 1210 1680 2020 2360 2550 -top -890 -bot 1500
 ",
 }
 
