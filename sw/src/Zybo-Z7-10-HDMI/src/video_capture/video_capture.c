@@ -254,7 +254,7 @@ int VideoInitialize(VideoCapture *videoPtr, INTC *intCtrl, XAxiVdma *vdma, u16 g
 	/*
 	 * Initialize all the fields in the VideoCapture struct
 	 */
-	videoPtr->curFrame = 0;
+	videoPtr->curFrame = 1;
 	for (i = 0; i < VIDEO_NUM_FRAMES; i++)
 	{
 		videoPtr->framePtr[i] = framePtr[i];

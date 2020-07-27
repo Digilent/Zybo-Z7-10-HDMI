@@ -321,7 +321,7 @@ int DisplayInitialize(DisplayCtrl *dispPtr, XAxiVdma *vdma, u16 vtcId, u32 dynCl
 	/*
 	 * Initialize all the fields in the DisplayCtrl struct
 	 */
-	dispPtr->curFrame = 0;
+	dispPtr->curFrame = 1;
 	dispPtr->dynClkAddr = dynClkAddr;
 	for (i = 0; i < DISPLAY_NUM_FRAMES; i++)
 	{

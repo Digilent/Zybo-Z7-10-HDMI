@@ -44,7 +44,7 @@
 /*
  * XPAR redefines
  */
-#define DYNCLK_BASEADDR 		XPAR_AXI_DYNCLK_0_BASEADDR
+#define DYNCLK_BASEADDR 		XPAR_AXI_DYNCLK_0_S_AXI_LITE_BASEADDR
 #define VDMA_ID 				XPAR_AXIVDMA_0_DEVICE_ID
 #define HDMI_OUT_VTC_ID 		XPAR_V_TC_OUT_DEVICE_ID
 #define HDMI_IN_VTC_ID 			XPAR_V_TC_IN_DEVICE_ID
@@ -218,7 +218,7 @@ void DemoRun()
 			nextFrame = dispCtrl.curFrame + 1;
 			if (nextFrame >= DISPLAY_NUM_FRAMES)
 			{
-				nextFrame = 0;
+				nextFrame = 1;
 			}
 			DisplayChangeFrame(&dispCtrl, nextFrame);
 			break;
@@ -238,7 +238,7 @@ void DemoRun()
 			nextFrame = videoCapt.curFrame + 1;
 			if (nextFrame >= DISPLAY_NUM_FRAMES)
 			{
-				nextFrame = 0;
+				nextFrame = 1;
 			}
 			VideoChangeFrame(&videoCapt, nextFrame);
 			break;
@@ -248,7 +248,7 @@ void DemoRun()
 //			nextFrame = videoCapt.curFrame + 1;
 //			if (nextFrame >= DISPLAY_NUM_FRAMES)
 //			{
-//				nextFrame = 0;
+//				nextFrame = 1;
 //			}
 			VideoStop(&videoCapt);
 			DemoInvertFrame(pFrames[videoCapt.curFrame], pFrames[nextFrame], videoCapt.timing.HActiveVideo, videoCapt.timing.VActiveVideo, DEMO_STRIDE);
@@ -261,7 +261,7 @@ void DemoRun()
 //			nextFrame = videoCapt.curFrame + 1;
 //			if (nextFrame >= DISPLAY_NUM_FRAMES)
 //			{
-//				nextFrame = 0;
+//				nextFrame = 1;
 //			}
 			VideoStop(&videoCapt);
 			DemoScaleFrame(pFrames[videoCapt.curFrame], pFrames[nextFrame], videoCapt.timing.HActiveVideo, videoCapt.timing.VActiveVideo, dispCtrl.vMode.width, dispCtrl.vMode.height, DEMO_STRIDE);
@@ -411,7 +411,7 @@ void DemoCRMenu()
 int DemoGetInactiveFrame(DisplayCtrl *DispCtrlPtr, VideoCapture *VideoCaptPtr)
 {
 	int i;
-	for (i=0; i<DISPLAY_NUM_FRAMES; i++)
+	for (i=1; i<DISPLAY_NUM_FRAMES; i++)
 	{
 		if (DispCtrlPtr->curFrame == i && DispCtrlPtr->state == DISPLAY_RUNNING)
 		{
