@@ -253,6 +253,7 @@ proc create_root_design { parentCell } {
    CONFIG.c_m_axis_mm2s_tdata_width {24} \
    CONFIG.c_mm2s_linebuffer_depth {2048} \
    CONFIG.c_mm2s_max_burst_length {32} \
+   CONFIG.c_num_fstores {4} \
    CONFIG.c_s2mm_linebuffer_depth {2048} \
    CONFIG.c_s2mm_max_burst_length {32} \
  ] $axi_vdma_0
