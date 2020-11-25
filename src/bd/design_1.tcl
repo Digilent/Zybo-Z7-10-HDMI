@@ -47,6 +47,11 @@ if { $list_projs eq "" } {
    set_property BOARD_PART digilentinc.com:zybo-z7-10:part0:1.0 [current_project]
 }
 
+set obj [get_filesets sources_1]
+set_property "ip_repo_paths" "[file normalize "../../user_ip_catalog"]" $obj
+
+# Rebuild user ip_repo's index before adding any source files
+update_ip_catalog -rebuild
 
 # CHANGE DESIGN NAME HERE
 variable design_name
