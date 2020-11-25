@@ -281,7 +281,7 @@ void DemoPrintMenu()
 	xil_printf("*                ZYBO Video Demo                 *\n\r");
 	xil_printf("**************************************************\n\r");
 	xil_printf("*Display Resolution: %28s*\n\r", dispCtrl.vMode.label);
-	printf("*Display Pixel Clock Freq. (MHz): %15.3f*\n\r", dispCtrl.pxlFreq);
+	xil_printf("*Display Pixel Clock Freq. (MHz): %11d.%03d*\n\r", (int)dispCtrl.pxlFreq, (((int)dispCtrl.pxlFreq*1000)%1000));
 	xil_printf("*Display Frame Index: %27d*\n\r", dispCtrl.curFrame);
 	if (videoCapt.state == VIDEO_DISCONNECTED) xil_printf("*Video Capture Resolution: %22s*\n\r", "!HDMI UNPLUGGED!");
 	else xil_printf("*Video Capture Resolution: %17dx%-4d*\n\r", videoCapt.timing.HActiveVideo, videoCapt.timing.VActiveVideo);
@@ -386,7 +386,7 @@ void DemoCRMenu()
 	xil_printf("*                ZYBO Video Demo                 *\n\r");
 	xil_printf("**************************************************\n\r");
 	xil_printf("*Current Resolution: %28s*\n\r", dispCtrl.vMode.label);
-	printf("*Pixel Clock Freq. (MHz): %23.3f*\n\r", dispCtrl.pxlFreq);
+	xil_printf("*Display Pixel Clock Freq. (MHz): %11d.%03d*\n\r", (int)dispCtrl.pxlFreq, (((int)dispCtrl.pxlFreq*1000)%1000));
 	xil_printf("**************************************************\n\r");
 	xil_printf("\n\r");
 	xil_printf("1 - %s\n\r", VMODE_640x480.label);
