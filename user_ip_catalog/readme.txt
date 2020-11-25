@@ -1,0 +1,1 @@
+Add this folder into the IP catalog in Vivado if the interfaces (TMDS) and required IPs (DVI/RGB, etc.) are not found.
